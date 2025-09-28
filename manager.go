@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -14,6 +16,11 @@ type Manager struct {
 	Clients ClientList
 	sync.RWMutex
 	handlers map[string]EventHandler
+}
+
+type NewMessageEvent struct {
+	SendMessageEvent
+	Sent time.Time `json:"sent"`
 }
 
 func NewManager() *Manager {
@@ -29,11 +36,51 @@ func NewManager() *Manager {
 // the function to setup the event handlers
 func (m *Manager) SetupEventHandlers() {
 	m.handlers[EventtoSendMessage] = SendMessage
+	m.handlers[EventtoJoinMEssage] = JoinMessage
 }
 
 // the function to create the Eventhandler for the SendMessage Event
 func SendMessage(event Event, c *Client) error {
-	fmt.Println(event)
+	var sendmsg SendMessageEvent
+	if err := json.Unmarshal(event.Payload, &sendmsg); err != nil {
+		log.Print("error in unmarshalling sent message")
+	}
+	// have to wrap it with the Event that the c.outgoing can understand
+	var broadcastmessage NewMessageEvent
+	broadcastmessage.Sent = time.Now()
+	broadcastmessage.Message = sendmsg.Message
+	broadcastmessage.Sender = sendmsg.Sender
+	data, err := json.Marshal(broadcastmessage)
+	if err != nil {
+		return fmt.Errorf("there was an error marshalling the broadcast message")
+	}
+	// we need to put the payload as an Event
+	var outgoingEvent Event
+	outgoingEvent.Payload = data
+	outgoingEvent.Type = EventtoSendMessage
+	for client := range c.manager.Clients {
+		client.Outgoing <- outgoingEvent
+	}
+
+	return nil
+}
+
+// func to create the Eventhandler for the joinmessage event
+func JoinMessage(event Event, c *Client) error {
+	var joinmsg JoinMessageEvent
+	if err := json.Unmarshal(event.Payload, &joinmsg); err != nil {
+		log.Print("error in unmarshalling payload")
+	}
+	c.Username = joinmsg.Username
+	fmt.Printf("%v has joined!!", c.Username)
+
+	goingOut := Event{
+		Type:    EventtoJoinMEssage,
+		Payload: event.Payload,
+	}
+	for client := range c.manager.Clients {
+		client.Outgoing <- goingOut
+	}
 	return nil
 }
 

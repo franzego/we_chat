@@ -16,9 +16,14 @@ type EventHandler func(event Event, c *Client) error
 
 const (
 	EventtoSendMessage = "send-message" //whenever a new msg is sent from the client, this is the event that we will send
+	EventtoJoinMEssage = "join-message" //whenever a join message is sent
 )
 
 type SendMessageEvent struct {
 	Message string `json:"message"`
 	Sender  string `json:"sender"`
+}
+
+type JoinMessageEvent struct {
+	Username string `json:"username"`
 }

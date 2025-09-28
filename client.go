@@ -29,7 +29,7 @@ type Client struct {
 	conn     *websocket.Conn
 	manager  *Manager
 	Outgoing chan Event //the queue for each client
-	//Message
+	Username string
 }
 
 func NewClientService(co *websocket.Conn, man *Manager) *Client {
