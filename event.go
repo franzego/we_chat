@@ -20,9 +20,9 @@ const (
 )
 
 type SendMessageEvent struct {
-	Message    string `json:"message"`
-	Sender     string `json:"sender"`
-	Receipient string `json:"receipient"`
+	Message   string `json:"message"`
+	Sender    string `json:"sender"`
+	Recipient string `json:"recipient"`
 }
 
 type JoinMessageEvent struct {

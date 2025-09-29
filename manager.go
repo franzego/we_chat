@@ -10,9 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/redis/go-redis/v9"
-
 	"github.com/gorilla/websocket"
+	"github.com/redis/go-redis/v9"
 )
 
 var ctx = context.Background()
@@ -23,6 +22,7 @@ type Manager struct {
 	handlers    map[string]EventHandler
 	redisClient *redis.Client
 	userIndex   map[string]*Client //map of users wiht thier connections
+
 }
 
 type NewMessageEvent struct {
@@ -32,9 +32,10 @@ type NewMessageEvent struct {
 
 func NewManager() *Manager {
 	m := &Manager{
-		Clients:   make(ClientList),
-		handlers:  make(map[string]EventHandler),
-		userIndex: make(map[string]*Client),
+		Clients:     make(ClientList),
+		handlers:    make(map[string]EventHandler),
+		userIndex:   make(map[string]*Client),
+		redisClient: NewRedisService(),
 	}
 	m.SetupEventHandlers()
 	return m
@@ -52,12 +53,16 @@ func SendMessage(event Event, c *Client) error {
 	var sendmsg SendMessageEvent
 	if err := json.Unmarshal(event.Payload, &sendmsg); err != nil {
 		log.Print("error in unmarshalling sent message")
+		return fmt.Errorf("unmarshall error: %v", err)
 	}
+	log.Printf("DEBUG: Unmarshalled - Message: %s, Sender: %s, Recipient: '%s'",
+		sendmsg.Message, sendmsg.Sender, sendmsg.Recipient)
 	//the sent messages are added here to the redis db for persistence
 	msgJson, _ := json.Marshal(&sendmsg)
-	err := c.manager.redisClient.RPush(ctx, "message-history", msgJson).Err()
+	err := c.manager.redisClient.RPush(context.Background(), "message-history", msgJson).Err()
 	if err != nil {
 		log.Println("there was an error writing to redis")
+		return fmt.Errorf("error in writing to redis: %v", err)
 	}
 
 	// have to wrap it with the Event that the c.outgoing can understand
@@ -75,24 +80,21 @@ func SendMessage(event Event, c *Client) error {
 	outgoingEvent.Type = EventtoSendMessage
 	// try and implement a kind of switch to handle group messages and DMs
 	switch {
-	case sendmsg.Receipient == "":
+	case sendmsg.Recipient == "":
 		for client := range c.manager.Clients {
 			client.Outgoing <- outgoingEvent
 		}
 	default:
-		receiver, ok := c.manager.userIndex[sendmsg.Receipient]
+		receiver, ok := c.manager.userIndex[sendmsg.Recipient]
 		if ok && receiver != nil {
 			receiver.Outgoing <- outgoingEvent
 		} else {
-			for user := range c.manager.userIndex {
-				if c.manager.userIndex[user] == nil {
-					msgJson2, _ := json.Marshal(outgoingEvent)
-					err := c.manager.redisClient.RPush(ctx, "message-history"+c.Username, msgJson2).Err()
-					if err != nil {
-						log.Println("there was a problem with the offline redis")
-					}
-				}
+			msgJson2, _ := json.Marshal(outgoingEvent)
+			err := c.manager.redisClient.RPush(ctx, "message-history"+sendmsg.Recipient, msgJson2).Err()
+			if err != nil {
+				log.Println("there was a problem with the offline redis")
 			}
+
 		}
 
 		c.Outgoing <- outgoingEvent
@@ -116,6 +118,8 @@ func JoinMessage(event Event, c *Client) error {
 	fmt.Printf("%v has joined!!", c.Username)
 	//wheneber a user sends a joinmessage, it the previous messages should be sent first if offline
 	c.manager.userIndex[c.Username] = c
+	//for debugging
+	fmt.Printf("DEBUG: m.userIndex=%v, handlers=%v, redisClient=%v\n", c.manager.userIndex, c.manager.handlers, c.manager.redisClient)
 	history := c.manager.redisClient.LRange(ctx, "message-history"+c.Username, 0, -1).Val()
 	c.manager.redisClient.Del(ctx, "message-history"+c.Username) //dont forget to clear after delivery
 	for _, hist := range history {
