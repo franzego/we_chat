@@ -72,7 +72,7 @@ func (c *Client) ReadMessages() {
 
 		//c.manager.Broadcast(request)
 		if err := c.manager.RouteEvents(request, c); err != nil {
-			log.Panicf("error handling messages: %v", err)
+			log.Printf("error handling messages: %v", err)
 		}
 	}
 
