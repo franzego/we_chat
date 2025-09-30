@@ -144,6 +144,16 @@ The server will automatically read environment variables using `os.Getenv`.
 
 ---
 
+## Note
+For a few hundred users, this will suffice. But once the number starts increasing there will be problems. A million users mean a million goroutines. Not very efficient. A broadcast message also means a loop over a million users. 
+These are all areas for improvement:
+- horizontal scaling: running many go chat servers
+- use of worker pools instead of looping over all the user
+- a load balancer(nginx) will be handy
+- also backpressure handling
+- and a pub/sub mechanism of some kind... maybe redis again or kafka..who knows?
+
+
 ## 📜 License
 
 MIT License © 2025 Your Name
