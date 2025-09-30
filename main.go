@@ -9,15 +9,32 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/lpernett/godotenv"
 )
 
+// loadconfig
+func loadEnv() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, relying on system env vars")
+	}
+}
+
 func main() {
+	loadEnv()
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
 	//http.HandleFunc("/", homePage)
 	//http.HandleFunc("/ws", handleConnections)
 
 	//go handleMessages()
 	manager := NewManager()
 	http.HandleFunc("/ws", manager.wsHandler)
+	http.Handle("/", http.FileServer(http.Dir("./")))
 	fmt.Println("Websocket Server started on :8080")
 	s := &http.Server{
 		Addr: ":8080",

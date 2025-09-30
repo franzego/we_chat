@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Simple Chat</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; }
+    #msg { width: 70%; }
+    #send { width: 15%; }
+    #username { width: 25%; }
+  </style>
+</head>
+<body>
+  <h2>Chat Room</h2>
+
+  <label>Username: <input type="text" id="username" placeholder="Enter a name..." /></label>
+  <br/><br/>
+
+  <div id="chat"></div>
+  <br/>
+  <input type="text" id="msg" placeholder="Type a message..." />
+  <button id="send">Send</button>
+
+  <script>
+    // Replace with your Render URL when deployed
+    //const ws = new WebSocket("wss://your-chat-server.onrender.com/ws");
+    const ws = new WebSocket("ws://localhost:8080/ws");
+    
+    const chat = document.getElementById("chat");
+    const msgInput = document.getElementById("msg");
+    const sendBtn = document.getElementById("send");
+    const usernameInput = document.getElementById("username");
+
+    ws.onopen = () => appendMessage("Connected to chat server ✅");
+    ws.onmessage = (event) => appendMessage(event.data);
+    ws.onclose = () => appendMessage("Disconnected ❌");
+
+    sendBtn.onclick = () => {
+      const username = usernameInput.value.trim() || "Anon";
+      const text = msgInput.value.trim();
+      if (text) {
+        ws.send(username + ": " + text);
+        msgInput.value = "";
+      }
+    };
+
+    msgInput.addEventListener("keyup", (e) => {
+      if (e.key === "Enter") sendBtn.click();
+    });
+
+    function appendMessage(message) {
+      const div = document.createElement("div");
+      div.textContent = message;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+  </script>
+</body>
+</html>
