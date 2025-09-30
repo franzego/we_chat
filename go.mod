@@ -4,7 +4,10 @@ go 1.25.0
 
 require github.com/redis/go-redis/v9 v9.14.0
 
-require github.com/gorilla/websocket v1.5.3
+require (
+	github.com/gorilla/websocket v1.5.3
+	github.com/lpernett/godotenv v0.0.0-20230527005122-0de1d4c5ef5e
+)
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

@@ -13,4 +13,4 @@ services:
     image: redis
     container_name: chat-redis
     ports:
-      -  "6380:6379"
+      -  "6379:6379"
